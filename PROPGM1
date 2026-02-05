@@ -1,0 +1,170 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. PROPGM.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+            SELECT INFILE ASSIGN DD1
+            ORGANIZATION IS SEQUENTIAL
+            ACCESS IS SEQUENTIAL
+            FILE STATUS WS-FS1.
+       DATA DIVISION.
+       FILE SECTION.
+       FD INFILE.
+       01 INREC.
+          02 PID  PIC X(4).
+          02       PIC X.
+          02 PDESC PIC X(10).
+          02       PIC X.
+          02 TRANS PIC X(1).
+          02       PIC X.
+          02 COST  PIC 9(3).
+          02       PIC X(59).
+       WORKING-STORAGE SECTION.
+             EXEC SQL
+                  INCLUDE PRODCL
+             END-EXEC.
+             EXEC SQL
+                  INCLUDE SQLCA
+             END-EXEC.
+       01 WS-STATUS.
+          05 WS-FS1  PIC 9(2).
+       01 WS-SEL-CTR PIC 9(3)  VALUE 0.
+       01 WS-INS-CTR PIC 9(3) VALUE 0.
+       01 WS-UPD-CTR PIC 9(3) VALUE 0.
+       01 WS-DEL-CTR PIC 9(3) VALUE 0.
+       01 WS-PS-CTR  PIC 9(3) VALUE 0.
+       01 WS-SQLCODE PIC S9(3) SIGN LEADING SEPARATE.
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+            PERFORM 1000-INIT-PARA THRU
+                    1000-INIT-PARA-EXIT.
+            PERFORM 2000-PROCESS-PARA THRU
+                    2000-PROCESS-PARA-EXIT.
+            PERFORM 9000-TERM-PARA THRU
+                    9000-TERM-PARA-EXIT.
+       0000-MAIN-PARA-EXIT.
+            EXIT.
+       1000-INIT-PARA.
+            INITIALIZE WS-FS1.
+       1000-INIT-PARA-EXIT.
+            EXIT.
+       2000-PROCESS-PARA.
+            PERFORM 3000-OPEN-PARA THRU
+                    3000-OPEN-PARA-EXIT.
+            PERFORM 4000-READ-PARA THRU
+                    4000-READ-PARA-EXIT UNTIL WS-FS1 = 10.
+            PERFORM 6000-CLOSE-PARA THRU
+                    6000-CLOSE-PARA-EXIT.
+       2000-PROCESS-PARA-EXIT.
+            EXIT.
+       3000-OPEN-PARA.
+            DISPLAY " WELCOME TO COBOL DB2 "
+            OPEN INPUT INFILE.
+            EVALUATE TRUE
+                 WHEN WS-FS1 = 0
+                      DISPLAY "OPEN INFILE SUCCESS"
+                 WHEN OTHER
+                      DISPLAY "OPEN UNSUCCESS" WS-FS1
+                      STOP RUN
+            END-EVALUATE.
+       3000-OPEN-PARA-EXIT.
+            EXIT.
+       4000-READ-PARA.
+            READ INFILE.
+            EVALUATE TRUE
+                  WHEN WS-FS1 = 0
+                      ADD 1 TO WS-PS-CTR
+                      MOVE PID TO HV-PID
+                      MOVE PDESC TO HV-PDESC
+                      MOVE COST TO HV-COST
+                      MOVE SQLCODE TO WS-SQLCODE
+                      EVALUATE TRANS
+                       WHEN 'S'
+                        EXEC SQL
+                            SELECT PID,PDESC,COST
+                            INTO :HV-PID,:HV-PDESC,:HV-COST
+                            FROM TECN090.PRODT
+                            WHERE PID=:HV-PID
+                        END-EXEC
+                          EVALUATE TRUE
+                             WHEN WS-SQLCODE = 0
+                               ADD 1 TO WS-SEL-CTR
+                               DISPLAY "PID:" HV-PID
+                               DISPLAY "PDESC: " HV-PDESC
+                               DISPLAY "COST: " HV-COST
+                             WHEN OTHER
+                               DISPLAY "ERROR IN SELECT " WS-SQLCODE
+                          END-EVALUATE
+                       WHEN 'I'
+                        EXEC SQL
+                           INSERT INTO TECN090.PRODT (PID,PDESC,COST)
+                           VALUES (:HV-PID,:HV-PDESC,:HV-COST)
+                        END-EXEC
+                        EVALUATE TRUE
+                          WHEN WS-SQLCODE = 0
+                           ADD 1 TO WS-INS-CTR
+                           DISPLAY "INSERT SUCCESS "
+                          WHEN OTHER
+                           DISPLAY "INSERT UNSUCCESS" WS-SQLCODE HV-PID
+                        END-EVALUATE
+                       WHEN 'U'
+                        EXEC SQL
+                           UPDATE TECN090.PRODT
+                           SET PDESC = :HV-PDESC,
+                               COST  = :HV-COST
+                           WHERE PID = :HV-PID
+                        END-EXEC
+                        EVALUATE TRUE
+                          WHEN WS-SQLCODE = 0
+                           ADD 1 TO WS-UPD-CTR
+                           DISPLAY "UPDATE SUCCESS  "
+                          WHEN OTHER
+                           DISPLAY "ERROR IN UPDATE" WS-SQLCODE
+                        END-EVALUATE
+                       WHEN 'D'
+                          EXEC SQL
+                             DELETE FROM TECN090.PRODT
+                             WHERE PID = :HV-PID
+                          END-EXEC
+                          EVALUATE TRUE
+                             WHEN WS-SQLCODE = 0
+                                ADD 1 TO WS-DEL-CTR
+                                DISPLAY "DELETE SUCCESS: "
+                             WHEN OTHER
+                                DISPLAY "ERROR IN DELETE" WS-SQLCODE
+                          END-EVALUATE
+                       WHEN OTHER
+                          DISPLAY "INVALID TRANSATION_TYPE"
+                      END-EVALUATE
+                  WHEN WS-FS1 = 10
+                       DISPLAY " END REACHED "
+                  WHEN OTHER
+                      DISPLAY " READ FAILS " WS-FS1
+                      PERFORM 6000-CLOSE-PARA THRU
+                              6000-CLOSE-PARA-EXIT
+                      STOP RUN
+            END-EVALUATE.
+       4000-READ-PARA-EXIT.
+            EXIT.
+       6000-CLOSE-PARA.
+            CLOSE INFILE.
+            EVALUATE TRUE
+                 WHEN WS-FS1 = 0
+                      DISPLAY " CLOSE INFILE SUCCESS"
+                 WHEN OTHER
+                      DISPLAY " CLOSE UNSUCCESS " WS-FS1
+                      STOP RUN
+            END-EVALUATE.
+       6000-CLOSE-PARA-EXIT.
+            EXIT.
+       9000-TERM-PARA.
+            DISPLAY " SELECT COUNT :" WS-SEL-CTR
+            DISPLAY " INSERT COUNT :" WS-INS-CTR
+            DISPLAY " UPDATE COUNT :" WS-UPD-CTR
+            DISPLAY " DELETE COUNT :" WS-DEL-CTR
+            DISPLAY " TOTAL RECORDS IN PS : " WS-PS-CTR
+            DISPLAY " GOOD BYE "
+            EXIT.
+       9000-TERM-PARA-EXIT.
+            STOP RUN.
+
