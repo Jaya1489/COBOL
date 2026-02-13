@@ -1,0 +1,91 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. RDPGM.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+             SELECT INFILE ASSIGN DD1
+             ORGANIZATION IS SEQUENTIAL
+             ACCESS IS SEQUENTIAL
+             FILE STATUS WS-FS1.
+       DATA DIVISION.
+       FILE SECTION.
+       FD INFILE.
+       01 INREC.
+          02 ENO          PIC X(4).
+          02 F            PIC X.
+          02 ENAME        PIC A(10).
+          02 F            PIC X.
+          02 DEPT          PIC X(6).
+          02 F             PIC X.
+          02 LOCATION      PIC A(10).
+          02 F             PIC X.
+          02 SALARY        PIC 9(6).
+          02 F             PIC X(40).
+       WORKING-STORAGE SECTION.
+       01 WS-STATUS.
+           05    WS-FS1    PIC 9(2).
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+             PERFORM 1000-INIT-PARA THRU
+                    1000-INIT-PARA-EXIT.
+             PERFORM 2000-PROCESS-PARA THRU
+                    2000-PROCESS-PARA-EXIT.
+             PERFORM 9000-TERM-PARA THRU
+                    9000-TERM-PARA-EXIT.
+       0000-MAIN-PARA-EXIT.
+            EXIT.
+       1000-INIT-PARA.
+            INITIALIZE WS-FS1.
+       1000-INIT-PARA-EXIT.
+            EXIT.
+       2000-PROCESS-PARA.
+            PERFORM 3000-OPEN-PARA THRU
+                    3000-OPEN-PARA-EXIT.
+            PERFORM 4000-READ-PARA THRU
+                    4000-READ-PARA-EXIT UNTIL WS-FS1 = 10.
+            PERFORM 6000-CLOSE-PARA THRU
+                    6000-CLOSE-PARA-EXIT.
+       2000-PROCESS-PARA-EXIT.
+            EXIT.
+       3000-OPEN-PARA.
+            OPEN INPUT INFILE.
+            EVALUATE TRUE
+                 WHEN WS-FS1 = 0
+                   DISPLAY "OPEN FILE1 SUCCESS"
+                 WHEN OTHER
+                   DISPLAY "FILE OPEN UNSUCCESSFUL" WS-FS1
+                  STOP RUN
+            END-EVALUATE.
+       3000-OPEN-PARA-EXIT.
+            EXIT.
+       4000-READ-PARA.
+            READ INFILE.
+            EVALUATE TRUE
+                 WHEN WS-FS1 = 0
+                     DISPLAY INREC
+                 WHEN WS-FS1 = 10
+                     DISPLAY "END REACHED"
+                 WHEN OTHER
+                     DISPLAY "READ FAILURE" WS-FS1
+                     PERFORM 6000-CLOSE-PARA THRU
+                             6000-CLOSE-PARA-EXIT
+                     STOP RUN
+            END-EVALUATE.
+       4000-READ-PARA-EXIT.
+            EXIT.
+       6000-CLOSE-PARA.
+            CLOSE INFILE.
+            EVALUATE TRUE
+                WHEN WS-FS1 = 0
+                  DISPLAY "CLOSE FILE1 SUCCESS"
+                WHEN OTHER
+                  DISPLAY "CLOSE UNSUCCESS" WS-FS1
+                  STOP RUN
+            END-EVALUATE.
+       6000-CLOSE-PARA-EXIT.
+            EXIT.
+       9000-TERM-PARA.
+            EXIT.
+       9000-TERM-PARA-EXIT.
+            STOP RUN.
+

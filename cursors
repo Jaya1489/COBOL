@@ -1,0 +1,58 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. MENCUR.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+            SELECT INFILE ASSIGN DD1
+            ORGANIZATION IS INDEXED
+            ACCESS IS SEQUENTIAL
+            RECORD KEY IS K-ENO
+            FILE STATUS WS-FS1.
+            SELECT OUTFILE ASSIGN DD2
+            ORGANIZATION IS SEQUENTIAL
+            ACCESS MODE SEQUENTIAL
+            FILE STATUS WS-FS2.
+       DATA DIVISION.
+       FILE SECTION.
+       FD INFILE.
+       01 INREC.
+          05 K-ENO  PIC X(4).
+          05 FILLER PIC X.
+          05 K-PAN  PIC X(10).
+          05 FILLER PIC X.
+          05 K-ADHR PIC X(9).
+          05 FILLER PIC X(55).
+       FD OUTFILE.
+       01 OUTREC.
+          05 SNO      PIC 9(3).
+          05 FILLER     PIC X.
+          05 ENO      PIC X(4).
+          05 FILLER     PIC X.
+          05 ENAME      PIC X(10).
+          05 FILLER     PIC X.
+          05 ESAL       PIC X(9).
+          05 FILLER     PIC X.
+          05 EMP-CAT    PIC X(10).
+          05 FILLER     PIC X.
+          05 DNO        PIC X(4).
+          05 FILLER     PIC X.
+          05 DNAME      PIC X(10).
+          05 FILLER     PIC X.
+          05 MGR-NAME   PIC X(10).
+          05 FILLER     PIC X.
+          05 MGRCNT     PIC X(10).
+          05 FILLER     PIC X.
+          05 PAN-NO     PIC X(10).
+          05 FILLER     PIC X.
+          05 ADHR-NO    PIC X(9).
+          05 FILLER     PIC X(21).
+       WORKING-STORAGE SECTION.
+            EXEC SQL
+                INCLUDE DEPDCL
+            END-EXEC.
+            EXEC SQL
+                INCLUDE EMPTDCL
+            END-EXEC.
+            EXEC SQL
+                INCLUDE SQLCA
+

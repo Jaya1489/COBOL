@@ -1,0 +1,10 @@
+//TECN106J JOB NOTIFY=&SYSUID                                           00010002
+//RUN EXEC PGM=COPI  --> MEMBER NAME                                    00040031
+//STEPLIB DD DSN=TECN106.COBOL.LOADLIB,DISP=SHR     --> LOADLIB NAME    00050006
+//SYSPRINT DD SYSOUT=*                                                  00060029
+//DD1 DD DSN=TECN106.MGR.DATA,DISP=SHR                                  00080027
+//DD2 DD DSN=TECN106.MGR.OUTPUT.KSDS,DISP=SHR                           00090030
+//SYSIN DD *                                                            00100026
+/*                                                                      00110026
+//                                                                      00120026
+

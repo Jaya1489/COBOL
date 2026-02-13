@@ -1,0 +1,15 @@
+       IDENTIFICATION DIVISION.                                         00010000
+       PROGRAM-ID. DYNAM.                                               00020000
+       DATA DIVISION.                                                   00030000
+       WORKING-STORAGE SECTION.                                         00040000
+       O1 NUM1         PIC 9(2) VALUE 30.                               00050004
+       01 NUM2         PIC 9(2) VALUE 10.                               00060004
+       01 RES          PIC 9(2).                                        00070004
+       PROCEDURE DIVISION.                                              00080000
+       0000-MAIN-PARA.                                                  00090000
+             COMPUTE RES = NUM1 + NUM2                                  00100003
+             DISPLAY "ADDITION" RES                                     00110001
+             COMPUTE RES = NUM1 - NUM2                                  00120003
+             DISPLAY "SUBTRACTION" RES                                  00130001
+             STOP RUN.                                                  00140001
+

@@ -1,0 +1,183 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. COPI.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT OUTPOLDT ASSIGN TO DDNAME "OUTPOLDT"
+              ORGANIZATION IS SEQUENTIAL.
+       DATA DIVISION.
+       FILE SECTION.
+       FD OUTPOLDT
+          RECORDING MODE F
+       01 OUT-REC    PIC X(80).
+       WORKING-STORAGE SECTION.
+       EXEC SQL
+           INCLUDE NATDCL
+       END-EXEC.
+       EXEC SQL
+           INCLUDE POLDCL
+       END-EXEC.
+       EXEC SQL
+           INCLUDE STDCL
+       END-EXEC.
+       EXEC SQL
+           INCLUDE SQLCA
+       END-EXEC.
+       EXEC SQL
+           BEGIN DECLARE SECTION
+       END-EXEC.
+       01  HV-CUST-ID                 PIC S9(9)  COMP.
+       01  HV-POL-NO                  PIC S9(9)  COMP.
+       01  HV-CUST-GEN                PIC X(1).
+       01  HV-CUST-NAT                PIC X(1).
+       01  HV-ANN-INC                 PIC S9(6)V99 COMP-3.
+       01  HV1-POL-TYPE               PIC X(1).
+       01  HV1-CUST-NAME.             PIC X(10).
+       01  HV1-PREM-PAID              PIC X(1).
+       01  HV1-PREM-AMT               PIC S9(4)V99 COMP-3.
+       01  HV1-CUST-ST                PIC X(2).
+       01  HV2-ST-NAME.               PIC X(15).
+       01  IND-HV1-CUST-ST            PIC S9(4) COMP VALUE 0.
+       01  IND-HV2-ST-NAME            PIC S9(4) COMP VALUE 0.
+       01  IV-CUST-ID                 PIC S9(9) COMP.
+       01  IV-CUST-GEN                PIC X(1).
+       01  IV-CUST-NAME.              PIC X(10).
+       01  IV-CUST-ST                 PIC X(2).
+       01  IV-ST-NAME.                PIC X(15).
+       01  IV-BON-AMT                 PIC S9(4)V99 COMP-3.
+       01  IV-POL-STATUS              PIC X(3).
+       01  IV-CLAIM-ELIG              PIC X(1).
+       EXEC SQL
+           END DECLARE SECTION
+       END-EXEC.
+       01  WS-END                   PIC X VALUE 'N'.
+       01  WS-SP                    PIC X VALUE SPACE.
+       01  WS-CUSTID-EDIT           PIC 9(9).
+       01  WS-BON-AMT-EDIT          PIC -9(7).99.
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+           EXEC SQL
+             DECLARE CUR1 CURSOR  FOR
+                   SELECT N.CUST_ID,N.POL_NO,N.CUST_GEN,N.CUST_NAT,
+                     N.ANN_INC,P.POL_TYPE,P.CUST_NAME,P.PREM_PAID,
+                     P.PREM_AMT,P.CUST_ST,S.ST_NAME FROM NAT_INSUR N
+                      JOIN POL_DETAIL P ON N.CUST_ID = P.CUST_ID_DETAIL
+                        LEFT JOIN ST_DETAIL S ON P.CUST_ST = S.CUST_ST
+                       WHERE N.CUST_NAT IN ('N','I')
+                           AND N.ANN_INC <> 0
+                        ORDER BY N.CUST_ID, N.POL_NO
+       END-EXEC.
+       OPEN OUTPUT OUTPOLDT
+       EXEC SQL OPEN CUR1 END-EXEC
+       IF SQLCODE NOT = 0
+          PERFORM 9000-DB2-ERROR-ABEND
+       END-IF
+       PERFORM UNTIL WS-END = 'Y'
+           EXEC SQL
+             FETCH CUR1 INTO
+               :HV-CUST-ID,
+               :HV-POL-NO,
+               :HV-CUST-GEN,
+               :HV-CUST-NAT,
+               :HV-ANN-INC,
+               :HV1-POL-TYPE,
+               :HV1-CUST-NAME,
+               :HV1-PREM-PAID,
+               :HV1-PREM-AMT,
+               :HV1-CUST-ST :IND-HV1-CUST-ST,
+               :HV2-ST-NAME :IND-HV2-ST-NAME
+           END-EXEC
+           EVALUATE TRUE
+             WHEN SQLCODE = 0
+               PERFORM 3000-PROCESS-ROW
+             WHEN SQLCODE = 100
+               MOVE 'Y' TO WS-END
+             WHEN OTHER
+               PERFORM 9000-DB2-ERROR-ABEND
+           END-EVALUATE.
+       END-PERFORM
+       EXEC SQL CLOSE CUR1 END-EXEC
+       EXEC SQL COMMIT   END-EXEC
+       CLOSE OUTPOLDT
+       GOBACK.
+       3000-PROCESS-ROW.
+           IF IND-HV1-CUST-ST = -1
+              GO TO 3000-EXIT
+           END-IF
+           EVALUATE HV1-POL-TYPE
+             WHEN 'L'
+               COMPUTE IV-BON-AMT = HV1-PREM-AMT * 0.55
+             WHEN 'H'
+               COMPUTE IV-BON-AMT = HV1-PREM-AMT * 0.65
+             WHEN 'G'
+               COMPUTE IV-BON-AMT = HV1-PREM-AMT * 0.75
+             WHEN OTHER
+               MOVE 0 TO IV-BON-AMT
+           END-EVALUATE
+           IF HV1-PREM-PAID = 'Y'
+              MOVE 'ACT' TO IV-POL-STATUS
+           ELSE
+              MOVE 'EXP' TO IV-POL-STATUS
+           END-IF
+           IF (HV1-POL-TYPE = 'G' OR HV1-POL-TYPE = 'H')
+                AND HV1-PREM-PAID = 'Y'
+             MOVE 'Y' TO IV-CLAIM-ELIG
+           ELSE
+              IF HV-ANN-INC <= 500000.00
+                 MOVE 'N' TO IV-CLAIM-ELIG
+              ELSE
+                 MOVE 'Y' TO IV-CLAIM-ELIG
+              END-IF
+           END-IF
+           MOVE HV-CUST-ID                 TO IV-CUST-ID
+           MOVE HV-CUST-GEN                TO IV-CUST-GEN
+           MOVE HV1-CUST-NAME              TO IV-CUST-NAME
+           MOVE HV1-CUST-ST                TO IV-CUST-ST
+           IF IND-HV2-ST-NAME = -1
+              GO TO 3000-EXIT
+           END-IF
+           MOVE HV2-ST-NAME                TO IV-ST-NAME
+           EXEC SQL
+             INSERT INTO INS_DET
+               ( CUST_ID, CUST_GEN, CUST_NAME, CUST_ST,
+                 ST_NAME, BON_AMT, POL_STATUS, CLAIM_ELIG )
+             VALUES
+               ( :IV-CUST-ID, :IV-CUST-GEN, :IV-CUST-NAME, :IV-CUST-ST,
+                 :IV-ST-NAME, :IV-BON-AMT, :IV-POL-STATUS,
+                   :IV-CLAIM-ELIG )
+           END-EXEC
+           IF SQLCODE NOT = 0
+              PERFORM 9000-DB2-ERROR-ABEND
+           END-IF
+           MOVE HV-CUST-ID TO WS-CUSTID-EDIT
+           MOVE IV-BON-AMT TO WS-BON-AMT-EDIT
+           MOVE SPACES     TO OUT-REC
+           STRING
+             FUNCTION TRIM(WS-CUSTID-EDIT)            DELIMITED BY SIZE
+             WS-SP                                    DELIMITED BY SIZE
+             IV-CUST-NAME-TEXT(1:IV-CUST-NAME-LEN)    DELIMITED BY SIZE
+             WS-SP                                    DELIMITED BY SIZE
+             IV-CUST-GEN                              DELIMITED BY SIZE
+             WS-SP                                    DELIMITED BY SIZE
+             IV-CUST-ST                               DELIMITED BY SIZE
+             WS-SP                                    DELIMITED BY SIZE
+             IV-ST-NAME                               DELIMITED BY SIZE
+             WS-SP                                    DELIMITED BY SIZE
+             FUNCTION TRIM(WS-BON-AMT-EDIT)           DELIMITED BY SIZE
+             WS-SP                                    DELIMITED BY SIZE
+             IV-POL-STATUS                            DELIMITED BY SIZE
+             WS-SP                                    DELIMITED BY SIZE
+             IV-CLAIM-ELIG                            DELIMITED BY SIZE
+             INTO OUT-REC
+           END-STRING
+           WRITE OUT-REC
+       3000-EXIT.
+           EXIT.
+       9000-DB2-ERROR-ABEND.
+           EXEC SQL ROLLBACK END-EXEC
+           DISPLAY '*** DB2 ERROR ***'
+           DISPLAY ' SQLCODE  : ' SQLCODE
+           DISPLAY ' SQLSTATE : ' SQLSTATE
+           DISPLAY ' SQLERRMC : ' SQLERRMC
+           STOP RUN.
+
